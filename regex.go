@@ -33,6 +33,14 @@ func (r *regexHandler) match(c *gin.Context, path string) (gin.Params, bool) {
 	return params, true
 }
 
+func (r *RegexRouter) patchEngine() {
+	routeFunc := r.route()
+	r.engine.Handlers = append(gin.HandlersChain{routeFunc}, r.engine.Handlers...)
+	engPtr := unsafe.Pointer(r.engine)
+	noRoutePtr := (*gin.HandlersChain)(unsafe.Pointer(uintptr(engPtr) + engineAllNoRouteOffset))
+	*noRoutePtr = append(gin.HandlersChain{routeFunc}, *noRoutePtr...)
+}
+
 func (r *RegexRouter) route() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !r.isNoRouteRequest(c) {

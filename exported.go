@@ -22,7 +22,7 @@ func New(engine *gin.Engine, hook Hook) *RegexRouter {
 			hook:   hook,
 			table:  make(map[string][]*regexHandler),
 		}
-		engine.Handlers = append(gin.HandlersChain{router.route()}, engine.Handlers...)
+		router.patchEngine()
 		regexRouters[engine] = router
 	}
 	return router
