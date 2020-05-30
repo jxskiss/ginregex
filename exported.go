@@ -31,11 +31,12 @@ func New(engine *gin.Engine, hook Hook) *RegexRouter {
 type Hook func(c *gin.Context, params gin.Params, httpMethod, regexPattern string)
 
 // RegexRouter is a regular expression router to be used with gin http framework.
-// It uses unsafe magic to patch gin.Engine and gin.Context dynamically.
+// It uses unsafe magic to patch gin.Engine and gin.Context on the fly.
 //
 // If named capturing with the (?P<name>...) syntax presents in registered
 // routes, the captured values will be filled into gin.Context.Params, so
-// you can access them like normal gin path parameters in your handlers.
+// you can access them like normal gin path parameters in your handlers
+// or binding functions.
 type RegexRouter struct {
 	engine   *gin.Engine
 	hook     Hook
