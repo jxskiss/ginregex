@@ -6,7 +6,7 @@ This package implements an regular expression router for the gin http framework.
 
 `gin` is an HTTP framework that claims high performance. Its main performance advantage comes from the `httprouter` that utilize trie and does not support regular expression. So why bother to build a regular expression router?
 
-It starts with a story.
+It starts with a fairly old story.
 
 In the process of maintaining a legacy Python service that has passed several teams in succession, after many optimizations to the old service, the performance of the program and the maintainability of the project are still a headache. Well, everyone knows the pain of maintaining a long-lived and full of history debt project written in a dynamically typed language.
 

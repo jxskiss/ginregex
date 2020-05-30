@@ -4,12 +4,46 @@ import (
 	"github.com/gin-gonic/gin"
 	"reflect"
 	"regexp"
+	"strings"
 	"sync/atomic"
 	"unsafe"
 )
 
+func min(a, b int) int {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
+func longestCommonPrefix(a, b string) string {
+	i := 0
+	max := min(len(a), len(b))
+	for i < max && a[i] == b[i] && a[i] != '\\' {
+		i++
+	}
+	return a[:i]
+}
+
+func newRegexHandler(pattern string, handlers gin.HandlersChain) *regexHandler {
+	regex := regexp.MustCompile(pattern)
+	trimmed := pattern
+	if strings.HasPrefix(trimmed, "^") {
+		trimmed = trimmed[1:]
+	}
+	quoted := regexp.QuoteMeta(trimmed)
+	prefix := longestCommonPrefix(trimmed, quoted)
+	return &regexHandler{
+		pattern:  pattern,
+		prefix:   prefix,
+		regex:    regex,
+		handlers: handlers,
+	}
+}
+
 type regexHandler struct {
 	pattern  string
+	prefix   string
 	regex    *regexp.Regexp
 	handlers gin.HandlersChain
 
@@ -17,6 +51,9 @@ type regexHandler struct {
 }
 
 func (r *regexHandler) match(c *gin.Context, path string) (gin.Params, bool) {
+	if !strings.HasPrefix(path, r.prefix) {
+		return nil, false
+	}
 	match := r.regex.FindStringSubmatch(path)
 	if match == nil {
 		return nil, false
