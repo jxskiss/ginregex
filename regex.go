@@ -26,11 +26,12 @@ func longestCommonPrefix(a, b string) string {
 }
 
 func newRegexHandler(pattern string, handlers gin.HandlersChain) *regexHandler {
-	regex := regexp.MustCompile(pattern)
-	trimmed := pattern
-	if strings.HasPrefix(trimmed, "^") {
-		trimmed = trimmed[1:]
+	normalized := pattern
+	if !strings.HasPrefix(normalized, "^") {
+		normalized = "^" + pattern
 	}
+	regex := regexp.MustCompile(normalized)
+	trimmed := strings.TrimPrefix(normalized, "^")
 	quoted := regexp.QuoteMeta(trimmed)
 	prefix := longestCommonPrefix(trimmed, quoted)
 	return &regexHandler{
@@ -70,6 +71,21 @@ func (r *regexHandler) match(c *gin.Context, path string) (gin.Params, bool) {
 	return params, true
 }
 
+// patchEngine inserts the regular expression router handler into the beginning
+// of `gin.Engine.Handlers` and `gin.Engine.allNoRoute`.
+//
+// It covers all three cases of `gin.Engine.NoRoute`.
+//
+// 1. NoRoute called before setup RegexRouter, then `gin.Engine.allNoRoute` has
+//    already been set, we insert the regex router into it here.
+//
+// 2. NoRoute called after setup RegexRouter, `gin.Engine.NoRoute` will rebuild
+//    allNoRoute handlers using `gin.Engine.Handlers`, we insert the regex router
+//    into `gin.Engine.Handlers`, then it will be the first handler of the final
+//    allNoRoute handlers.
+//
+// 3. NoRoute never been called, then `gin.Engine.allNoRoute` is empty,
+//    we fill it with the regex router here.
 func (r *RegexRouter) patchEngine() {
 	routeFunc := r.route()
 	r.engine.Handlers = append(gin.HandlersChain{routeFunc}, r.engine.Handlers...)
@@ -134,6 +150,18 @@ func (r *RegexRouter) combineHandlers(h *regexHandler) *gin.HandlersChain {
 	return &combinedHandlers
 }
 
+// patchContext replaces gin.Context.handlers to handlers for the matched regular expression.
+//
+// When it comes here, the gin.Context's old handlers are:
+//     [RegexRouter.route(), gin.Engine.allNoRoute...]
+//     and gin.Context.index is 0;
+//
+// after patching, it will be replace to:
+//     [RegexRouter.route(), gin.Engine.Handlers..., RegexRouter.handlers..., regexHandler.handlers...]
+//     and gin.Context.index won't be changed (remains 0);
+//
+// After this function returns, gin.Context.Next() will be called, then it goes to the
+// registered business middleware and endpoint handlers.
 func (r *RegexRouter) patchContext(c *gin.Context, params gin.Params, handlers gin.HandlersChain) {
 	ctxPtr := unsafe.Pointer(c)
 	handlersPtr := (*gin.HandlersChain)(unsafe.Pointer(uintptr(ctxPtr) + contextHandlersOffset))
@@ -146,7 +174,6 @@ func (r *RegexRouter) patchContext(c *gin.Context, params gin.Params, handlers g
 var (
 	engineAllNoRouteOffset uintptr
 	contextHandlersOffset  uintptr
-	contextIndexOffset     uintptr
 )
 
 func initOffset() {
@@ -160,11 +187,6 @@ func initOffset() {
 	if !ok {
 		panic("unsupported gin version without Context.handlers field")
 	}
-	indexField, ok := ctxTyp.FieldByName("index")
-	if !ok {
-		panic("unsupported gin version without Context.index field")
-	}
 	engineAllNoRouteOffset = allNoRouteField.Offset
 	contextHandlersOffset = handlersField.Offset
-	contextIndexOffset = indexField.Offset
 }

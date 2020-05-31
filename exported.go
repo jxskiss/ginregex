@@ -3,6 +3,7 @@ package ginregex
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"strings"
 )
 
 var regexRouters = make(map[*gin.Engine]*RegexRouter)
@@ -60,10 +61,13 @@ func (r *RegexRouter) Use(middleware ...gin.HandlerFunc) *RegexRouter {
 // This function is intended for bulk loading and to allow the usage of less
 // frequently used, non-standardized or custom methods (e.g. for internal
 // communication with a proxy).
+//
+// If the regex pattern does not start with "^", "^" will be added to the start.
 func (r *RegexRouter) Handle(httpMethod, regexPattern string, handlers ...gin.HandlerFunc) *RegexRouter {
 	methodHandlers := r.table[httpMethod]
 	for _, h := range methodHandlers {
-		if h.pattern == regexPattern {
+		if strings.TrimPrefix(h.pattern, "^") ==
+			strings.TrimPrefix(regexPattern, "^") {
 			panic(fmt.Sprintf("register duplicate regex route: %s %s", httpMethod, regexPattern))
 		}
 	}
