@@ -63,4 +63,4 @@ Some notes:
 
 1. named capturing will be filled into gin.Context.Params, you can access them like normal gin path parameters in handler or binding functions;
 
-1. optionally an hook function (`func(c *gin.Context, params gin.Params, httpMethod, regexPattern string)`) can be provided when building the `RegexRouter`, it will be called right after the request path being matched by a regular expression; you may use this feature to integrate with other `gin` middleware;
+1. optionally a hook function (`func(c *gin.Context, regexPattern string)`) can be provided when building the `RegexRouter`, it will be called right after the request path being matched by a regular expression; you may use this feature to integrate with other `gin` middleware;

@@ -33,7 +33,7 @@ func TestRegexpHandler(t *testing.T) {
 		c := &gin.Context{}
 		c.Request, _ = http.NewRequest("GET", test["path"].(string), nil)
 		handler := newRegexHandler(test["pattern"].(string), nil)
-		params, ok := handler.match(c, c.Request.URL.Path)
+		params, ok := handler.match(c.Request.URL.Path, c.Params)
 		assert.Equal(t, test["match"].(bool), ok)
 		assert.Equal(t, test["params"].(gin.Params), params)
 	}
@@ -42,14 +42,14 @@ func TestRegexpHandler(t *testing.T) {
 var notMatchPath = "/myapp/not_match/1234/"
 var usersHandler = newRegexHandler(`^/myapp/users/(?P<user_id>\d+)/$`, nil)
 
-func BenchmarkRegexpMatch(b *testing.B) {
+func BenchmarkRegexpNotMatch(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = usersHandler.regex.FindStringSubmatch(notMatchPath)
 	}
 }
 
-func BenchmarkPrefixMatch(b *testing.B) {
+func BenchmarkPrefixNotMatch(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = strings.HasPrefix(notMatchPath, usersHandler.prefix)

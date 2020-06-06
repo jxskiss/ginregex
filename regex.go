@@ -51,7 +51,7 @@ type regexHandler struct {
 	combinedHandlers unsafe.Pointer
 }
 
-func (r *regexHandler) match(c *gin.Context, path string) (gin.Params, bool) {
+func (r *regexHandler) match(path string, params gin.Params) (gin.Params, bool) {
 	if !strings.HasPrefix(path, r.prefix) {
 		return nil, false
 	}
@@ -59,7 +59,6 @@ func (r *regexHandler) match(c *gin.Context, path string) (gin.Params, bool) {
 	if match == nil {
 		return nil, false
 	}
-	params := c.Params[:0]
 	for i, name := range r.regex.SubexpNames() {
 		if i != 0 && name != "" {
 			params = append(params, gin.Param{
@@ -105,19 +104,14 @@ func (r *RegexRouter) route() gin.HandlerFunc {
 		}
 		path := c.Request.URL.Path
 		for _, h := range methodHandlers {
-			params, match := h.match(c, path)
+			params, match := h.match(path, c.Params)
 			if !match {
 				continue
 			}
-
-			combinedHandlers := (*gin.HandlersChain)(atomic.LoadPointer(&h.combinedHandlers))
-			if combinedHandlers == nil {
-				combinedHandlers = r.combineHandlers(h)
-				atomic.StorePointer(&h.combinedHandlers, unsafe.Pointer(combinedHandlers))
-			}
-			r.patchContext(c, params, *combinedHandlers)
+			c.Params = params
+			r.patchHandlers(c, h)
 			if r.hook != nil {
-				r.hook(c, params, c.Request.Method, h.pattern)
+				r.hook(c, h.pattern)
 			}
 			c.Next()
 			return
@@ -142,15 +136,7 @@ func (r *RegexRouter) isNoRouteRequest(c *gin.Context) bool {
 	return isSameHandlers(handlersPtr, noRoutePtr)
 }
 
-func (r *RegexRouter) combineHandlers(h *regexHandler) *gin.HandlersChain {
-	combinedHandlers := make(gin.HandlersChain, 0, len(r.engine.Handlers)+len(r.handlers)+len(h.handlers))
-	combinedHandlers = append(combinedHandlers, r.engine.Handlers...)
-	combinedHandlers = append(combinedHandlers, r.handlers...)
-	combinedHandlers = append(combinedHandlers, h.handlers...)
-	return &combinedHandlers
-}
-
-// patchContext replaces gin.Context.handlers to handlers for the matched regular expression.
+// patchHandlers replaces gin.Context.handlers to handlers of the matched regular expression.
 //
 // When it comes here, the gin.Context's old handlers are:
 //     [RegexRouter.route(), gin.Engine.allNoRoute...]
@@ -162,13 +148,23 @@ func (r *RegexRouter) combineHandlers(h *regexHandler) *gin.HandlersChain {
 //
 // After this function returns, gin.Context.Next() will be called, then it goes to the
 // registered business middleware and endpoint handlers.
-func (r *RegexRouter) patchContext(c *gin.Context, params gin.Params, handlers gin.HandlersChain) {
+func (r *RegexRouter) patchHandlers(c *gin.Context, h *regexHandler) {
+	combinedHandlers := (*gin.HandlersChain)(atomic.LoadPointer(&h.combinedHandlers))
+	if combinedHandlers == nil {
+		combinedHandlers = r.combineHandlers(h)
+		atomic.StorePointer(&h.combinedHandlers, unsafe.Pointer(combinedHandlers))
+	}
 	ctxPtr := unsafe.Pointer(c)
 	handlersPtr := (*gin.HandlersChain)(unsafe.Pointer(uintptr(ctxPtr) + contextHandlersOffset))
-	*handlersPtr = handlers
-	if params != nil {
-		c.Params = params
-	}
+	*handlersPtr = *combinedHandlers
+}
+
+func (r *RegexRouter) combineHandlers(h *regexHandler) *gin.HandlersChain {
+	combinedHandlers := make(gin.HandlersChain, 0, len(r.engine.Handlers)+len(r.handlers)+len(h.handlers))
+	combinedHandlers = append(combinedHandlers, r.engine.Handlers...)
+	combinedHandlers = append(combinedHandlers, r.handlers...)
+	combinedHandlers = append(combinedHandlers, h.handlers...)
+	return &combinedHandlers
 }
 
 var (

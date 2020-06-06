@@ -57,7 +57,7 @@ func setupRouter() *gin.Engine {
 	})
 
 	// Regular expression endpoints
-	regexhook := func(c *gin.Context, params gin.Params, method, pattern string) {
+	regexhook := func(c *gin.Context, pattern string) {
 		// do whatever you need to prepare/hack the request
 	}
 	regexRouter := ginregex.New(r, regexhook)

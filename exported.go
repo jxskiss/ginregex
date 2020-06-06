@@ -28,7 +28,7 @@ func New(engine *gin.Engine, hook Hook) *RegexRouter {
 	return router
 }
 
-type Hook func(c *gin.Context, params gin.Params, httpMethod, regexPattern string)
+type Hook func(c *gin.Context, regexPattern string)
 
 // RegexRouter is a regular expression router to be used with gin http framework.
 // It uses unsafe magic to patch gin.Engine and gin.Context on the fly.
