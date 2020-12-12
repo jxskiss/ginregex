@@ -51,6 +51,17 @@ regexRouter.GET("^/.*$", regexHandler)
 r.Run(":8080")
 ```
 
+Or, you may use the `Dispatch` function for a small set of handlers:
+
+```go
+r := gin.Default()
+r.Any("/users/*any", ginregex.Dispatch(
+	ginregex.NewMatcher("GET", `^/users/settings/$`, myMiddleware1, GetUserSettings),
+	ginregex.NewMatcher("POST", `^/users/settings/$`, myMiddleware1, ModifyUserSettings),
+	ginregex.NewMatcher("GET", `^/users/(?P<user_id>\d+)/$`, myMiddleware2, GetUserDetail),
+))
+```
+
 Some notes:
 
 1. the `RegexRouter` is compatible with the NoRoute handler of `gin.Engine`, so you can optionally configure it anywhere as you want;
