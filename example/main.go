@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jxskiss/ginregex"
@@ -56,6 +58,13 @@ func setupRouter() *gin.Engine {
 		}
 	})
 
+	// Dispatch
+	r.Any("/users/*any", ginregex.Dispatch(
+		ginregex.NewMatcher("GET", `^/users/settings/$`, echoHandler),
+		ginregex.NewMatcher("POST", `^/users/settings/$`, echoHandler),
+		ginregex.NewMatcher("GET", `^/users/(?P<user_id>\d+)/$`, paramHandler),
+	))
+
 	// Regular expression endpoints
 	regexhook := func(c *gin.Context, pattern string) {
 		// do whatever you need to prepare/hack the request
@@ -66,6 +75,18 @@ func setupRouter() *gin.Engine {
 	})
 
 	return r
+}
+
+func echoHandler(c *gin.Context) {
+	c.String(http.StatusOK, fmt.Sprintf("%s %s", c.Request.Method, c.Request.URL.Path))
+}
+
+func paramHandler(c *gin.Context) {
+	var params []string
+	for _, param := range c.Params {
+		params = append(params, fmt.Sprintf("%s:%s", param.Key, param.Value))
+	}
+	c.String(http.StatusOK, strings.Join(params, " "))
 }
 
 func main() {
